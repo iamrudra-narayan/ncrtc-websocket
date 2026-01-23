@@ -1,3 +1,5 @@
 fastapi[standard]
 asyncpg
 websocket
+gunicorn
+uvicorn
