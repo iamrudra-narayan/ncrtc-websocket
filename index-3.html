@@ -96,7 +96,7 @@
 </table>
 
 <script>
-    const ws = new WebSocket("ws://ncrtc-websocket.onrender.com/ws/live-trains");
+    const ws = new WebSocket("wss://ncrtc-websocket.onrender.com/ws/live-trains");
     const trainMap = {};
 
     function getSpeedClass(speed) {

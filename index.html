@@ -15,7 +15,7 @@
             document.querySelector("#ws-id").textContent = client_id;
             
             // WebSocket connection banana (Handshake)
-            var ws = new WebSocket(`ws://ncrtc-websocket.onrender.com/trainJourneyEventPublisher/train-journey-events`);
+            var ws = new WebSocket(`wss://ncrtc-websocket.onrender.com/trainJourneyEventPublisher/train-journey-events`);
 
             // Jab server se message aaye
             ws.onmessage = function(event) {

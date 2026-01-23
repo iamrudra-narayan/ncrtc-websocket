@@ -12,7 +12,7 @@ app = FastAPI()
 from db_config import DbConfig
 db_config_instance = DbConfig()
 
-url = "ws://ncrtc-websocket.onrender.com"
+url = "wss://ncrtc-websocket.onrender.com"
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
