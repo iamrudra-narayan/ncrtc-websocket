@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NCRTC OCC Live Train Dashboard</title>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #020617;
+            color: #e5e7eb;
+            margin: 0;
+            padding: 10px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #38bdf8;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            border: 1px solid #1e293b;
+            padding: 6px 8px;
+            text-align: center;
+        }
+
+        th {
+            background: #020617;
+            color: #38bdf8;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:nth-child(even) {
+            background: #020617;
+        }
+
+        tr:nth-child(odd) {
+            background: #020617;
+        }
+
+        /* SPEED COLORING */
+        .speed-stop { color: #ef4444; font-weight: bold; }
+        .speed-slow { color: #facc15; font-weight: bold; }
+        .speed-medium { color: #22c55e; font-weight: bold; }
+        .speed-fast { color: #38bdf8; font-weight: bold; }
+
+        /* DIRECTION COLORING */
+        .dir-forward { color: #22c55e; font-weight: bold; }
+        .dir-backward { color: #fb7185; font-weight: bold; }
+        .dir-stop {
+            color: red;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1 }
+            50% { opacity: 0.3 }
+            100% { opacity: 1 }
+        }
+
+        .latlong {
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>🚆 NCRTC OCC - Live Train Movement Dashboard</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Train ID</th>
+            <th>Name</th>
+            <th>Speed (km/h)</th>
+            <th>Position (km)</th>
+            <th>Direction</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Next Station</th>
+            <th>Train Length (m)</th>
+            <th>Coaches</th>
+        </tr>
+    </thead>
+    <tbody id="trainTable"></tbody>
+</table>
+
+<script>
+    const ws = new WebSocket("ws://ncrtc-websocket.onrender.com/ws/live-trains");
+    const trainMap = {};
+
+    function getSpeedClass(speed) {
+        if (speed < 1) return 'speed-stop';
+        if (speed < 20) return 'speed-slow';
+        if (speed < 60) return 'speed-medium';
+        return 'speed-fast';
+    }
+
+    function getDirectionClass(dir) {
+        if (dir === 'STOP') return 'dir-stop';
+        if (dir === 'FORWARD') return 'dir-forward';
+        return 'dir-backward';
+    }
+
+    ws.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+        const trains = data.active_trains || [];
+
+        trains.forEach(train => {
+            const id = train.journey_id;
+
+            if (!trainMap[id]) {
+                const row = document.createElement("tr");
+                row.id = `row-${id}`;
+                row.innerHTML = `
+                    <td id="id-${id}"></td>
+                    <td id="name-${id}"></td>
+                    <td id="speed-${id}"></td>
+                    <td id="poskm-${id}"></td>
+                    <td id="dir-${id}"></td>
+                    <td id="lat-${id}" class="latlong"></td>
+                    <td id="lon-${id}" class="latlong"></td>
+                    <td id="next-${id}"></td>
+                    <td id="length-${id}"></td>
+                    <td id="coach-${id}"></td>
+                `;
+                document.getElementById("trainTable").appendChild(row);
+                trainMap[id] = true;
+            }
+
+            const speed = train.live_status.speed;
+            const direction = train.live_status.direction;
+
+            document.getElementById(`id-${id}`).innerText = train.train_id;
+            document.getElementById(`name-${id}`).innerText = train.train_name;
+
+            const speedCell = document.getElementById(`speed-${id}`);
+            speedCell.innerText = speed.toFixed(2);
+            speedCell.className = getSpeedClass(speed);
+
+            document.getElementById(`poskm-${id}`).innerText = train.live_status.position_km.toFixed(3);
+
+            const dirCell = document.getElementById(`dir-${id}`);
+            dirCell.innerText = direction;
+            dirCell.className = getDirectionClass(direction);
+
+            document.getElementById(`lat-${id}`).innerText = train.live_status.latitude?.toFixed(6);
+            document.getElementById(`lon-${id}`).innerText = train.live_status.longitude?.toFixed(6);
+            document.getElementById(`next-${id}`).innerText = train.live_status.next_station || "-";
+            document.getElementById(`length-${id}`).innerText = train.live_status.train_length_meters.toFixed(1);
+            document.getElementById(`coach-${id}`).innerText = train.live_status.coach_count;
+        });
+    };
+
+    ws.onclose = () => console.log("WebSocket disconnected");
+</script>
+
+</body>
+</html>

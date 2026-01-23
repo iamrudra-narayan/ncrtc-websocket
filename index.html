@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>FastAPI SignalR Clone</title>
+    </head>
+    <body>
+        <h1>WebSocket Client</h1>
+        <h2>Your ID: <span id="ws-id"></span></h2>
+        
+        <ul id='messages'>
+        </ul>
+
+        <script>
+            var client_id = Date.now();
+            document.querySelector("#ws-id").textContent = client_id;
+            
+            // WebSocket connection banana (Handshake)
+            var ws = new WebSocket(`ws://ncrtc-websocket.onrender.com/trainJourneyEventPublisher/train-journey-events`);
+
+            // Jab server se message aaye
+            ws.onmessage = function(event) {
+                var messages = document.getElementById('messages');
+                var message = document.createElement('li');
+                
+                // Server se aaya hua data parse karna
+                var content = document.createTextNode(event.data);
+                message.appendChild(content);
+                messages.appendChild(message);
+            };
+
+            ws.onclose = function(event) {
+                console.log("Connection closed");
+            };
+        </script>
+    </body>
+</html>
