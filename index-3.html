@@ -101,6 +101,11 @@
     const ws = new WebSocket("wss://ncrtc-websocket.onrender.com/ws/live-trains");
     const trainMap = {};
 
+    function formatNumber(value, decimals = 6) {
+        const num = Number(value);
+        return Number.isFinite(num) ? num.toFixed(decimals) : "-";
+    }
+
     function getSpeedClass(speed) {
         if (speed < 1) return 'speed-stop';
         if (speed < 20) return 'speed-slow';
@@ -158,11 +163,13 @@
             dirCell.innerText = direction;
             dirCell.className = getDirectionClass(direction);
 
-            document.getElementById(`lat-${id}`).innerText = train.live_status.latitude?.toFixed(6);
-            document.getElementById(`lon-${id}`).innerText = train.live_status.longitude?.toFixed(6);
+            document.getElementById(`lat-${id}`).innerText = formatNumber(train.live_status.latitude, 6);
+            document.getElementById(`lon-${id}`).innerText = formatNumber(train.live_status.longitude, 6);
             document.getElementById(`next-${id}`).innerText = train.live_status.next_station || "-";
             document.getElementById(`length-${id}`).innerText = train.live_status.train_length_meters.toFixed(1);
             document.getElementById(`coach-${id}`).innerText = train.live_status.coach_count;
+            document.getElementById(`status-${id}`).innerText = train.live_status.running_status || "-";
+            document.getElementById(`mode-${id}`).innerText = train.live_status.running_mode || "-";
         });
     };
 

@@ -121,11 +121,47 @@ async def get_train_details_from_db(current_km: float, current_time: str):
             LIMIT 1;
             """
             station_row = await conn.fetchrow(station_query, current_km)
-            
-            if not station_row: 
-                return None
-            
-            nearest_station_code = station_row['station_code'] # e.g., 'A21'
+
+            if not station_row:
+                # Bracket fallback: find previous and next stations around current_km
+                prev_row = await conn.fetchrow(
+                    """
+                    SELECT station_code, position_km
+                    FROM ncrtc.stations
+                    WHERE position_km <= $1
+                    ORDER BY position_km DESC
+                    LIMIT 1;
+                    """,
+                    current_km,
+                )
+                next_row = await conn.fetchrow(
+                    """
+                    SELECT station_code, position_km
+                    FROM ncrtc.stations
+                    WHERE position_km >= $1
+                    ORDER BY position_km ASC
+                    LIMIT 1;
+                    """,
+                    current_km,
+                )
+
+                if prev_row and next_row:
+                    # Choose whichever is closer
+                    prev_diff = abs(current_km - float(prev_row["position_km"]))
+                    next_diff = abs(current_km - float(next_row["position_km"]))
+                    nearest_station_code = (
+                        prev_row["station_code"] if prev_diff <= next_diff else next_row["station_code"]
+                    )
+                elif prev_row:
+                    nearest_station_code = prev_row["station_code"]
+                elif next_row:
+                    nearest_station_code = next_row["station_code"]
+                else:
+                    # No stations available in DB at all
+                    logger.warning(f"No stations available to map km {current_km}")
+                    return None
+            else:
+                nearest_station_code = station_row['station_code'] # e.g., 'A21'
 
             # --- STEP 2: Find Train scheduled at this Station + Time ---
             # Ab check karte hain: "Kaunsi train A21 se abhi (buffer time) nikalne wali hai?"
@@ -145,7 +181,7 @@ async def get_train_details_from_db(current_km: float, current_time: str):
                 logger.info(f"Matched Train {row['train_no']} at {nearest_station_code}")
                 return {"train_no": row['train_no'], "name": row['name'], "scheduled_station": row['scheduled_station']}
             else:
-                # No timetable match near this station at given time; skip this train
+                # No timetable match; skip this train (avoid UNKNOWN)
                 logger.warning(f"No train found in timetable for {nearest_station_code} at {current_time}")
                 return None
                 
@@ -210,9 +246,15 @@ async def process_payload(raw_payload):
                 get_current_ist_time()
             )
             
-            # Skip train if no station found
+            # Skip train if no station/train mapping
             if train_details is None:
-                logger.warning(f"Journey {j_id} - No station found for km {current_km}")
+                logger.warning(f"Journey {j_id} - No station/train mapping for km {current_km}")
+                continue
+
+            # Defensive: avoid caching UNKNOWN/empty train numbers
+            tn = str(train_details.get("train_no", "")).strip()
+            if not tn or tn.upper() == "UNKNOWN":
+                logger.warning(f"Journey {j_id} - Ignoring unmapped train at station {train_details.get('scheduled_station', 'N/A')}")
                 continue
             
             train_speed = train.get('speed', 0)
@@ -223,7 +265,7 @@ async def process_payload(raw_payload):
                 else "Halted"
             )    
             active_train_cache[j_id] = {
-                "train_no": train_details["train_no"].upper() if train_details["train_no"] != "T-Unknown" else "UNKNOWN",
+                "train_no": str(train_details["train_no"]).upper(),
                 "name": train_details["name"],
                 "last_pos": current_meters,
                 "direction": direction_status,
@@ -243,6 +285,9 @@ async def process_payload(raw_payload):
 
         # 3. Construct Final Payload for Frontend
         cache_data = active_train_cache[j_id]
+        # Guard: never emit UNKNOWN/empty train IDs
+        if not cache_data.get("train_no") or cache_data["train_no"].upper() == "UNKNOWN":
+            continue
         
         enriched_train = {
             "train_id": cache_data["train_no"], # R1, R2, etc.
