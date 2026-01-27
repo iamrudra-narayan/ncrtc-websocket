@@ -2,6 +2,7 @@ import uuid
 import random
 import time
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 # --- CONFIGURATION (NCRTC RRTS: Delhi <-> Meerut) ---
 TRACK_LENGTH_METERS = 82150.0  
@@ -91,7 +92,7 @@ class NCRTCTrain:
         return {
             "journeyId": self.journey_id,
             "sensorId": self.sensor_id,
-            "eventTime": datetime.now(timezone.utc).isoformat(),
+            "eventTime": datetime.now(ZoneInfo("Asia/Kolkata")).isoformat(),
             "length": self.length,
             "predicted": False,
             "speed": round(speed_abs, 4),

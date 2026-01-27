@@ -145,14 +145,13 @@ async def get_train_details_from_db(current_km: float, current_time: str):
                 logger.info(f"Matched Train {row['train_no']} at {nearest_station_code}")
                 return {"train_no": row['train_no'], "name": row['name'], "scheduled_station": row['scheduled_station']}
             else:
-                # Agar exact timetable match nahi mila, toh generic return karo
-                # (Real scenario mein hum shayad purani journeyId logic use karein)
+                # No timetable match near this station at given time; skip this train
                 logger.warning(f"No train found in timetable for {nearest_station_code} at {current_time}")
-                return {"train_no": "T-Unknown", "name": "N/A"}
+                return None
                 
     except Exception as e:
         logger.error(f"DB Lookup Error: {e}")
-        return {"train_no": "N/A", "name": "N/A", "scheduled_station": "N/A"}
+        return None
 
 
 async def determine_direction(j_id, current_meters, head_meters, tail_meters):
