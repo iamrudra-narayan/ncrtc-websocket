@@ -90,6 +90,8 @@
             <th>Next Station</th>
             <th>Train Length (m)</th>
             <th>Coaches</th>
+            <th>Running Status</th>
+            <th>Running Mode</th>
         </tr>
     </thead>
     <tbody id="trainTable"></tbody>
@@ -133,6 +135,8 @@
                     <td id="next-${id}"></td>
                     <td id="length-${id}"></td>
                     <td id="coach-${id}"></td>
+                    <td id="status-${id}"></td>
+                    <td id="mode-${id}"></td>
                 `;
                 document.getElementById("trainTable").appendChild(row);
                 trainMap[id] = true;

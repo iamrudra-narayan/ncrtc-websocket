@@ -106,7 +106,7 @@ async def get_train_details_from_db(current_km: float, current_time: str):
         async with connection.acquire() as conn:
             
             # --- STEP 1: Find Nearest Station based on KM ---
-            # Hum check kar rahe hain ki train kis station ke 2km radius mein hai
+            # Hum check kar rahe hain ki train kis station ke radius mein hai
             station_query = """
             SELECT station_code 
             FROM ncrtc.stations 
@@ -115,8 +115,8 @@ async def get_train_details_from_db(current_km: float, current_time: str):
             """
             station_row = await conn.fetchrow(station_query, current_km)
             
-            if not station_row:
-                return {"train_no": "Unknown", "name": "N/A"}
+            if not station_row: 
+                return None
             
             nearest_station_code = station_row['station_code'] # e.g., 'A21'
 
@@ -202,20 +202,39 @@ async def process_payload(raw_payload):
             train_details = await get_train_details_from_db(
                 current_km,
                 datetime.now().time()
+            )
+            
+            # Skip train if no station found
+            if train_details is None:
+                logger.warning(f"Journey {j_id} - No station found for km {current_km}")
+                continue
+            
+            train_speed = train.get('speed', 0)
+            train_running_status = "On Time" if train_speed > 0 else "Stopped"
+            train_running_mode = (
+                "Running" if train_speed > 30 
+                else "Slow" if train_speed > 0 
+                else "Halted"
             )    
             active_train_cache[j_id] = {
-                "train_no": train_details["train_no"],
+                "train_no": train_details["train_no"].upper() if train_details["train_no"] != "T-Unknown" else "UNKNOWN",
                 "name": train_details["name"],
                 "last_pos": current_meters,
                 "direction": direction_status,
                 "scheduled_station": train_details.get("scheduled_station", "N/A"),
                 "train_length": train.get("length", 0),
-                "coach_count": 6 if train.get("length", 0) > 50 else 3
+                "coach_count": 6 if train.get("length", 0) > 50 else 3,
+                "running_status": train_running_status,
+                "running_mode": train_running_mode
             }
         else:
             # Update cache with new position
             active_train_cache[j_id]["last_pos"] = current_meters
             active_train_cache[j_id]["direction"] = direction_status
+            train_speed = train.get("speed", 0)
+            active_train_cache[j_id]["running_status"] = "On Time" if train_speed > 0 else "Stopped"
+            active_train_cache[j_id]["running_mode"] = "Running" if train_speed > 30 else "Slow" if train_speed > 0 else "Halted"
+
         # 3. Construct Final Payload for Frontend
         cache_data = active_train_cache[j_id]
         
@@ -232,7 +251,9 @@ async def process_payload(raw_payload):
                 "is_moving_forward": is_moving_forward,
                 "next_station": cache_data.get("scheduled_station", "N/A"),
                 "train_length_meters": cache_data.get("train_length", 0),
-                "coach_count": cache_data.get("coach_count", 0)
+                "coach_count": cache_data.get("coach_count", 0),
+                "running_status": cache_data.get("running_status", "STOPPED"),
+                "running_mode": cache_data.get("running_mode", "stopped")
             },
             "visualization": {
                 # Logic for progress bar can be calculated here or in FE
