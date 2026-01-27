@@ -98,9 +98,11 @@ async def websocket_endpoint(websocket: WebSocket):
 active_train_cache = {}
 
 # --- HELPER FUNCTIONS ---
-def get_current_ist_time_str() -> str:
-    """Returns current time as HH:MM:SS in IST (Asia/Kolkata)."""
-    return datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%H:%M:%S")
+def get_current_ist_time():
+    """Returns current time as a naive time object in IST (Asia/Kolkata)."""
+    dt_ist = datetime.now(ZoneInfo("Asia/Kolkata"))
+    # Return a naive time (without tzinfo) to satisfy asyncpg adapter
+    return dt_ist.time().replace(tzinfo=None)
 
 async def get_train_details_from_db(current_km: float, current_time: str):
     """
@@ -206,7 +208,7 @@ async def process_payload(raw_payload):
             logger.info(f"New Journey {j_id} detected. Querying DB...")
             train_details = await get_train_details_from_db(
                 current_km,
-                get_current_ist_time_str()
+                get_current_ist_time()
             )
             
             # Skip train if no station found
