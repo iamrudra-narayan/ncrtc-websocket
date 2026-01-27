@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import json
 import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -97,6 +98,10 @@ async def websocket_endpoint(websocket: WebSocket):
 active_train_cache = {}
 
 # --- HELPER FUNCTIONS ---
+def get_current_ist_time_str() -> str:
+    """Returns current time as HH:MM:SS in IST (Asia/Kolkata)."""
+    return datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%H:%M:%S")
+
 async def get_train_details_from_db(current_km: float, current_time: str):
     """
     Corrected Logic: Uses both Location (KM) and Time to identify the train.
@@ -201,7 +206,7 @@ async def process_payload(raw_payload):
             logger.info(f"New Journey {j_id} detected. Querying DB...")
             train_details = await get_train_details_from_db(
                 current_km,
-                datetime.now().time()
+                get_current_ist_time_str()
             )
             
             # Skip train if no station found
